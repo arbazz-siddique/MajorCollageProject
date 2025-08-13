@@ -1,17 +1,19 @@
+import requests
 import pymupdf
-from openai import OpenAI
 import streamlit as st
+from sentence_transformers import SentenceTransformer
+from config import Config
 
-# Extracts all text from a PDF file
+# Initialize embedding model for title generation
+embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+
 def extract_text_from_pdf(pdf_file):
     doc = pymupdf.open(stream=pdf_file.read(), filetype="pdf")
     return "\n".join(page.get_text() for page in doc)
 
-# Extracts all text from a plain text file
 def extract_text_from_txt(txt_file):
     return txt_file.read().decode("utf-8")
 
-# Splits a long text into overlapping chunks for better AI processing
 def chunk_text(text, chunk_size=300, overlap=20):
     words = text.split()
     chunks = []
@@ -20,20 +22,36 @@ def chunk_text(text, chunk_size=300, overlap=20):
         chunks.append(chunk)
     return chunks
 
-# Uses OpenAI to generate a short, readable title for a given text chunk
 def generate_chunk_title(text):
-    client = OpenAI(api_key=st.session_state.get("openai_api_key"))
     try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "Summarize this content into a short, descriptive title (5-10 words max)."},
-                {"role": "user", "content": text}
-            ],
-            temperature=0.3,
-            max_tokens=20
+        if len(text.split()) < 5:  # Don't generate title for very short chunks
+            return text[:80] + "..."
+            
+        # First try to extract a meaningful sentence
+        sentences = [s.strip() for s in text.split('.') if len(s.split()) > 3]
+        if sentences:
+            return sentences[0][:80] + ("..." if len(sentences[0]) > 80 else "")
+            
+        # Only call LLM if necessary
+        prompt = (
+            "Summarize the following content into a short, descriptive title (5-10 words max).\n\n"
+            f"Content:\n{text}\n\n"
+            "Title:"
         )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        st.error(f"Chunk title generation failed: {e}")
-        return text[:80] + "..."
+        
+        response = requests.post(
+            Config.OLLAMA_URL + "/api/generate",
+            json={
+                "model": Config.OLLAMA_MODEL,
+                "prompt": prompt,
+                "temperature": 0.3,
+                "max_tokens": 20,
+                "stream": False,
+            },
+            timeout=10,  # Reduced timeout
+        )
+        response.raise_for_status()
+        return response.json()["response"].strip().replace('"', '')
+    except Exception:
+        # Fallback to first meaningful words
+        return ' '.join(text.split()[:7]) + ("..." if len(text.split()) > 7 else "")

@@ -3,10 +3,20 @@ import pandas as pd
 import numpy as np
 import faiss
 from tqdm import tqdm
-from openai import OpenAI
+from sentence_transformers import SentenceTransformer
 import streamlit as st
+from functools import lru_cache
 
-# Handles document storage, chunking, embeddings, and FAISS index creation
+@lru_cache(maxsize=1)
+def get_embedding_model():
+    try:
+        model = SentenceTransformer("all-MiniLM-L6-v2")
+        st.success("Embedding model loaded successfully")
+        return model
+    except Exception as e:
+        st.error(f"Failed to load embedding model: {e}")
+        raise
+
 class AIDocumentStore:
     def __init__(self, dataset_path, index_path, chunk_size=500):
         self.dataset_path = dataset_path
@@ -14,76 +24,96 @@ class AIDocumentStore:
         self.documents = []
         self.document_metadata = []
         self.index_path = index_path
+        self._embedding_model = None
+        self._index = None
 
-    # Loads the dataset and splits abstracts into chunks
+    @property
+    def embedding_model(self):
+        if self._embedding_model is None:
+            self._embedding_model = get_embedding_model()
+        return self._embedding_model
+
     def load_and_split(self):
+        """Load dataset and split into chunks with progress bar"""
         if not os.path.exists(self.dataset_path):
             raise FileNotFoundError(f"Dataset not found at {self.dataset_path}")
+            
         df = pd.read_csv(self.dataset_path)
-        for _, row in df.iterrows():
-            chunks = self.chunk_text(row['abstract'], self.chunk_size)
-            for chunk in chunks:
-                self.documents.append(chunk)
-                self.document_metadata.append({
-                    'title': row['title'],
-                    'url': row['url']
-                })
+        with st.spinner("Processing documents..."):
+            for _, row in tqdm(df.iterrows(), total=len(df), desc="Splitting documents"):
+                chunks = self.chunk_text(row['abstract'], self.chunk_size)
+                for chunk in chunks:
+                    self.documents.append(chunk)
+                    self.document_metadata.append({
+                        'title': row['title'],
+                        'url': row['url']
+                    })
 
-    # Splits a block of text into word-based chunks
     def chunk_text(self, text, size):
+        """Split text into chunks with word boundaries"""
         words = text.split()
         return [' '.join(words[i:i+size]) for i in range(0, len(words), size)]
 
-    # Embeds all loaded documents using OpenAI's embedding model
     def embed_documents(self):
-        client = OpenAI(api_key=st.session_state.get("openai_api_key"))
+        """Embed documents with batch processing"""
         embeddings = []
-        for doc in tqdm(self.documents, desc="Embedding documents"):
-            response = client.embeddings.create(
-                input=doc,
-                model="text-embedding-ada-002"
-            )
-            embeddings.append(response.data[0].embedding)
+        batch_size = 32  # Process documents in batches
+        
+        with st.spinner("Creating embeddings..."):
+            for i in tqdm(range(0, len(self.documents), batch_size), desc="Embedding"):
+                batch = self.documents[i:i + batch_size]
+                embeddings.extend(self.embedding_model.encode(
+                    batch, 
+                    convert_to_numpy=True,
+                    show_progress_bar=False,
+                    batch_size=batch_size
+                ))
+        
         return np.array(embeddings).astype("float32")
 
-    # Builds and saves a FAISS index from embedded documents
     def build_index(self):
+        """Build and save FAISS index"""
         self.load_and_split()
         embeddings = self.embed_documents()
-        dim = len(embeddings[0])
-        index = faiss.IndexFlatL2(dim)
+        
+        # Create optimized FAISS index
+        dim = embeddings.shape[1]
+        quantizer = faiss.IndexFlatL2(dim)
+        index = faiss.IndexIVFFlat(quantizer, dim, min(100, len(self.documents)//4))
+        index.nprobe = 5 
+        # Train and add embeddings
+        index.train(embeddings)
         index.add(embeddings)
         faiss.write_index(index, self.index_path)
+        
+        st.success(f"Index built with {len(self.documents)} documents")
         return index
 
-    # Loads an existing FAISS index from disk
     def load_index(self):
+        """Load existing FAISS index with validation"""
         if not os.path.exists(self.index_path):
             raise FileNotFoundError(
-                f"FAISS index not found at {self.index_path}. "
-                "You may need to run `build_index()` first to generate it."
+                f"FAISS index not found at {self.index_path}\n"
+                "Run build_index() first to generate it."
             )
-        return faiss.read_index(self.index_path)
+            
+        index = faiss.read_index(self.index_path)
+        if index.ntotal == 0:
+            raise ValueError("Loaded index is empty")
+            
+        return index
 
-    # Returns metadata for all chunks
     def get_metadata(self):
         return self.document_metadata
 
-    # Returns all stored document chunks
     def get_documents(self):
         return self.documents
 
-# Embeds a user query into a vector using OpenAI's API
 def embed_query(query):
-    client = OpenAI(api_key=st.session_state.get("openai_api_key"))
+    """Embed a query with error handling"""
     try:
-        response = client.embeddings.create(
-            input=query,
-            model="text-embedding-ada-002"
-        )
-        return np.array(response.data[0].embedding).astype("float32")
+        model = get_embedding_model()
+        return model.encode(query, convert_to_numpy=True).astype("float32")
     except Exception as e:
         st.error(f"Embedding failed: {e}")
-        
-        # Return dummy vector if failure
-        return np.zeros(1536).astype("float32")
+        return np.zeros(384)  # Return zero vector as fallback

@@ -1,8 +1,61 @@
+import faiss
 import pytest
 from src.retrieval import AIDocumentStore
+import numpy as np
+from unittest.mock import patch
+import pandas as pd
+import os
+
+
+@pytest.fixture
+def mock_encoder(monkeypatch):
+    def mock_encode(text, convert_to_numpy=True):
+        return np.random.rand(384).astype("float32")
+    monkeypatch.setattr("sentence_transformers.SentenceTransformer.encode", mock_encode)
+
+
+def test_build_index(mock_encoder, tmp_path):
+    dataset_path = tmp_path / "test.csv"
+    index_path = tmp_path / "test.index"
+    
+    # Create test dataset
+    pd.DataFrame({
+        'title': ['Test Paper'],
+        'abstract': ['word ' * 1000],  # 1000 word abstract
+        'url': ['http://test.com']
+    }).to_csv(dataset_path, index=False)
+    
+    store = AIDocumentStore(dataset_path, index_path)
+    index = store.build_index()
+    assert os.path.exists(index_path)
+    assert index.ntotal > 0
+
+def test_initialize_with_existing_index(mock_encoder, tmp_path):
+    dataset_path = tmp_path / "test.csv" 
+    index_path = tmp_path / "test.index"
+    
+    # Create dummy index
+    dummy_index = faiss.IndexFlatL2(384)
+    faiss.write_index(dummy_index, index_path)
+    
+    store = AIDocumentStore(dataset_path, index_path)
+    index = store.load_index()  # Should not rebuild
+    assert index.ntotal == 0  # Our dummy index was empty
+
+def test_embed_query_fallback(monkeypatch):
+    from src.retrieval import embed_query
+    
+    def mock_encode(*args, **kwargs):
+        raise Exception("Embedding failed")
+    
+    monkeypatch.setattr("sentence_transformers.SentenceTransformer.encode", mock_encode)
+    
+    embedding = embed_query("test query")
+    assert embedding.shape == (384,)
+    assert np.all(embedding == 0) 
 
 # Test that the constructor correctly sets initial attributes
-def test_aidocumentstore_initialization():
+def test_aidocumentstore_initialization(mock_encoder):
     store = AIDocumentStore(dataset_path="dummy.csv", index_path="dummy.index", chunk_size=100)
     assert store.dataset_path == "dummy.csv"
     assert store.index_path == "dummy.index"
@@ -10,6 +63,23 @@ def test_aidocumentstore_initialization():
     assert isinstance(store.documents, list)
     assert isinstance(store.document_metadata, list)
 
+
+
+def test_embed_documents(mock_encoder):
+    store = AIDocumentStore("dummy.csv", "dummy.index")
+    store.documents = ["doc1", "doc2"]
+    embeddings = store.embed_documents()
+    assert isinstance(embeddings, np.ndarray)
+    assert embeddings.shape == (2, 384)
+
+
+def test_embed_query(mock_encoder):
+    from src.retrieval import embed_query
+    embedding = embed_query("test query")
+    assert isinstance(embedding, np.ndarray)
+    assert embedding.shape == (384,)
+
+    
 # Test that load_and_split() raises an error if file doesn't exist
 def test_load_and_split_file_not_found():
     with pytest.raises(FileNotFoundError) as excinfo:

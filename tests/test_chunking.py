@@ -1,7 +1,40 @@
 from src.upload_utils import chunk_text, extract_text_from_txt, extract_text_from_pdf
 import io
 import pymupdf
+from unittest.mock import patch
 
+
+def test_generate_chunk_title(monkeypatch):
+    from src.upload_utils import generate_chunk_title
+    
+    # Mock the Ollama API response
+    def mock_post(*args, **kwargs):
+        class MockResponse:
+            def json(self):
+                return {"response": "Mock Title"}
+            def raise_for_status(self):
+                pass
+        return MockResponse()
+    
+    monkeypatch.setattr("requests.post", mock_post)
+    
+    title = generate_chunk_title("Some sample text content")
+    assert title == "Mock Title"
+
+def test_generate_chunk_title_fallback(monkeypatch):
+    from src.upload_utils import generate_chunk_title
+    
+    # Mock a failed API call
+    def mock_post(*args, **kwargs):
+        raise Exception("API error")
+    
+    monkeypatch.setattr("requests.post", mock_post)
+    
+    long_text = " ".join(["word"] * 100)
+    title = generate_chunk_title(long_text)
+    assert "word" in title or "..." in title
+
+    
 # Test that long text gets chunked correctly with overlap
 def test_chunk_text_length():
     txt = "word " * 1000

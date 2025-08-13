@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual Environments
+venv/
+
+# Pytest & Coverage Cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDEs
+.vscode/
+
+# User-Specific History
+data/history.csv
+
+# Env files
+.env
+.env.*
+
+# Logs
+*.log
+
+# System files
+.DS_Store
+Thumbs.db

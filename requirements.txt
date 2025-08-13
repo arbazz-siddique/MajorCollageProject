@@ -1,0 +1,17 @@
+# Core dependencies
+streamlit==1.44.1
+requests==2.31.0
+sentence-transformers==2.7.0
+faiss-cpu==1.10.0  # For vector search
+
+# Document processing
+pymupdf==1.25.5  # PDF handling
+pandas==2.2.3  # Data handling
+numpy==2.2.5  # Numerical operations
+
+# Text-to-speech
+pyttsx3==2.98  # Local TTS
+gTTS==2.5.1     # Google TTS
+
+# Progress bars
+tqdm==4.67.1

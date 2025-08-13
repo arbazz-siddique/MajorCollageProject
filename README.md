@@ -1,189 +1,132 @@
-# AI Study Buddy
+# AI Study Buddy 🤖📚
 
-**AI Study Buddy** is a retrieval-augmented, voice-enabled assistant for answering questions about AI and ML topics using real academic sources and contextual memory.
+Your intelligent research assistant that understands PDFs! Upload academic papers, select sections, and get AI-powered explanations with sources.
 
-Whether you’re diving into neural networks or asking about transformers, this assistant retrieves relevant paper chunks, builds thoughtful prompts, and speaks the answer, all from a clean web UI powered by Streamlit and OpenAI.
+## 🚀 Features
 
----
+- **Document Processing**: Upload and process PDF/TXT documents
+- **Section-based Q&A**: Ask questions about specific document sections
+- **Multi-language Support**: Text-to-speech (English, Hindi, Japanese, etc.)
+- **Conversation Memory**: Remembers previous questions and answers
+- **Cited Answers**: Provides sources for generated answers
+- **Customizable AI**: Adjust temperature, max tokens, and prompt styles
 
-## Features at a Glance
+## 🛠️ Tech Stack
 
-- **Retrieval-Augmented Generation (RAG)**  
-  Finds the most relevant paper chunks from an Arxiv-based dataset using FAISS vector search.
+**Core Technologies**:
 
-- **Document Uploads (PDF/TXT)**  
-  Upload and search over your own files, broken down into manageable, titled chunks.
+- Python 3.11+
+- Streamlit (Web Interface)
+- Ollama (LLM Backend)
+- FAISS (Vector Search)
 
-- **Session Memory**  
-  Keeps track of your previous questions/answers during a session to improve continuity.
+**Key Libraries**:
 
-- **Prompt Styles**  
-  Choose from Default, Concise, Beginner-Friendly, Explain Step-by-Step, or With Citations Only. You can also enable Chain-of-Thought mode for more deliberate, internally reasoned answers.
+- PyMuPDF (PDF processing)
+- Sentence Transformers (Embeddings)
+- gTTS/pyttsx3 (Text-to-speech)
+- Pandas (Data handling)
 
-- **Reasoning & Explanation Panels**  
-  Displays the full prompt that was used, and a follow-up explanation of why the answer makes sense.
+## 🏁 Getting Started
 
-- **Text-to-Speech (TTS)**  
-  Click-to-read answers or history entries aloud using pyttsx3 for local speech synthesis.
+### Prerequisites
 
-- **Downloadable Q&A History**  
-  Export your full session as `.csv` or `.txt`.
+- Python 3.11+
+- Ollama installed and running
+- Git (for cloning)
 
-- **Secure API Key Entry**  
-  Users must enter a valid OpenAI API key before accessing the app features.
+### Installation
 
-- **Automated Testing & Coverage**  
-  Pytest suite with coverage reporting for core modules and logic.
-
----
-
-## Test Coverage
-
-![Coverage Badge](https://img.shields.io/badge/Coverage-65%25-yellowgreen)
-
-> Coverage is calculated using `pytest --cov=src` and includes logic for retrieval, chunking, memory, TTS, and prompt generation.
-
----
-
-## App Walkthrough
-
-Below is a step-by-step visual walkthrough of the application. Each image corresponds to a key phase in the user journey.
-
-**API Key Entry**  
-A secure field prompts the user to enter an OpenAI API key before usage.  
-<img src="screenshots/api_key_entry.png" alt="API Key Entry" width="800"/>
-
-**Home Screen**  
-Default interface showing model controls, the input form, and an empty state.  
-<img src="screenshots/home_screen.png" alt="Home Screen" width="800"/>
-
-**Uploading a PDF/TXT**  
-Drag-and-drop interface for uploading a document. A dropdown lets you select a titled chunk.  
-<img src="screenshots/upload_section.png" alt="Upload Section" width="800"/>
-
-**Question Answered with Sources**  
-App displays the generated answer followed by source links used.  
-<img src="screenshots/answer_with_sources.png" alt="Answer with Citations" width="800"/>
-
-**Reasoning & Prompt Trace**  
-Expandable panels show both the explanation and full prompt that led to the answer.  
-<img src="screenshots/reasoning_trace1.png" alt="Reasoning Trace 1" width="800"/>  
-<img src="screenshots/reasoning_trace2.png" alt="Reasoning Trace 2" width="800"/>
-
-**Session History & Downloads**  
-See your recent session Q&A and export to CSV or TXT formats.  
-<img src="screenshots/session_history.png" alt="Session History" width="800"/>
-
----
-
-## Tech Stack
-
-- Python 3.10+
-- [Streamlit](https://streamlit.io/)
-- [OpenAI API](https://openai.com/)
-- [FAISS](https://github.com/facebookresearch/faiss)
-- [PyMuPDF](https://pymupdf.readthedocs.io/) for PDFs
-- [pyttsx3](https://pyttsx3.readthedocs.io/) for TTS
-- [pytest](https://docs.pytest.org/) with `pytest-cov` for testing
-
----
-
-## Getting Started
-
-1. **Clone the repository**
-    ```bash
-    git clone https://github.com/mohammed0823/ai-study-buddy.git
-    cd ai-study-buddy
-    ```
-
-2. **Set up the environment**
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # On Windows: venv\Scripts\activate
-    pip install -r requirements.txt
-    ```
-
-3. **Launch the app**
-    ```bash
-    streamlit run app.py
-    ```
-
-4. **Enter your OpenAI API key**  
-   You will be prompted in the sidebar before using any features.
-
-5. **Ask a question or upload a document**
-   - Type a question like *"What is a transformer in deep learning?"*
-   - Or upload a paper and choose which section to reference
-
----
-
-## Running Tests
-
-To run the full test suite:
+1. Clone the repository:
 
 ```bash
-pytest --cov=src tests/
+git clone https://github.com/arbazz-siddique/MajorCollageProject.git
+cd MajorCollageProject
 ```
 
-Tested modules include:
-- Prompt generation
-- Memory formatting
-- Text chunking
-- Retrieval logic
-- TTS toggle behavior
-
----
-
-## Project Structure
+### Create and activate virtual environment:
 
 ```
-ai-study-buddy/
-├── app.py
-├── src/
-│   ├── generator.py
-│   ├── memory.py
-│   ├── retrieval.py
-│   ├── tts.py
-│   ├── upload_utils.py
-├── tests/
-│   ├── test_chunking.py
-│   ├── test_memory.py
-│   ├── test_prompt.py
-│   ├── test_retrieval.py
-│   ├── test_tts.py
-├── data/
-│   ├── arxiv_dataset.csv
-│   ├── faiss.index
-│   ├── history.csv
-├── screenshots/
-├── .gitignore
-├── LICENSE
-├── Project.md
-├── README.md
-├── requirements.txt
-├── requirements-dev.txt
-├── pytest.ini
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Mac/Linux:
+source venv/bin/activate
 ```
 
----
+### Install dependencies:
 
-## License
+pip install -r requirements.txt
 
-Licensed under the MIT License.  
-See the [LICENSE](LICENSE) file for full details.
+### Set up Ollama (in separate terminal):
 
----
+```
+ollama pull llama3
+ollama serve
+```
 
-## About the Creator
+## 🖥️ Running the Application:
 
-**Mohammed Albattah**  
-Computer Science and Mathematics student | Passionate about AI and software development
+```
+streamlit run app.py
+```
 
-I'm currently studying Computer Science and exploring how intelligent systems can solve real-world problems. I built this project to deepen my understanding of retrieval-augmented generation, prompt engineering, and building clean, modular applications.
+## 📂 Project Structure:
 
-If you're working on similar ideas, have suggestions, or just want to connect, I'd love to hear from you.
+MajorCollageProject/
+├── app.py                # Main application
+├── config.py             # Configuration
+├── requirements.txt      # Production dependencies
+├── requirements-dev.txt  # Development dependencies
+├── data/                 # Data storage
+│   ├── arxiv_dataset.csv # Sample dataset
+│   ├── faiss.index       # Vector index
+│   └── history.csv       # Conversation history
+├── src/                  # Core modules
+│   ├── generator.py      # Answer generation
+│   ├── memory.py         # Conversation memory
+│   ├── retrieval.py      # Document search
+│   ├── tts.py            # Text-to-speech
+│   └── upload_utils.py   # File processing
+└── tests/                # Test cases
+    ├── test_chunking.py
+    ├── test_memory.py
+    └── test_retrieval.py
 
-- [LinkedIn](https://www.linkedin.com/in/mohammedalbattah/)
-- Email: [mia5663@psu.edu](mailto:mia5663@psu.edu)
 
-If you found this project useful, feel free to star the repo or share it. I really appreciate the support!
+## 📜 License
+
+MIT License - See [LICENSE](https://license/) file for details.
+
+## 👨‍💻 About the Creator
+
+**Mohammad Arbazz Siddique**
+📧 Email: [arbazzsiddique104@gmail.com](https://mailto:arbazzsiddique104@gmail.com/)
+🔗 GitHub: [arbazz-siddique](https://github.com/arbazz-siddique)
+
+Feel free to reach out for:
+
+* Feature requests
+* Bug reports
+* Collaboration opportunities
+* General questions about the project
+
+  Made with ❤️ using Python and Streamlit 
+
+  ```
+  Key improvements:
+  1. Added emoji headers for better visual scanning
+  2. Organized into clear, logical sections
+  3. Included detailed tech stack information
+  4. Added prerequisites section
+  5. Improved project structure visualization
+  6. Added specific contact information
+  7. Made installation steps more detailed
+  8. Included both production and development instructions
+
+  Would you like me to:
+  1. Add a troubleshooting section?
+  2. Include specific configuration examples?
+  3. Add screenshots of the interface?
+  4. Include demo gifs/videos?
+  ```

@@ -1,0 +1,14 @@
+version: "3.9"
+
+services:
+  ai-study-buddy:
+    build: .
+    ports:
+      - "8501:8501"    # Streamlit
+      - "11434:11434"  # Ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: always
+
+volumes:
+  ollama_data:

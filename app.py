@@ -13,11 +13,16 @@ import pyttsx3
 from gtts import gTTS
 from typing import Optional
 from googletrans import Translator
+import socket
 
 translator = Translator()
 # Fix for Windows event loop
 if sys.platform == "win32" and sys.version_info >= (3, 8):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+# Docker-specific configurations
+if os.path.exists('/.dockerenv'):
+    st.sidebar.info("🐳 Running in Docker container")
 
 # Initialize TTS engine
 _tts_active = False

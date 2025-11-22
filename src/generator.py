@@ -1,6 +1,5 @@
-import requests
 import streamlit as st
-import time 
+from src.gemini_utils import GeminiHandler
 
 def build_prompt(question, docs_metadata, style="Default", memory_block="", cot=False):
     # Compile the document chunks into a referenceable context block
@@ -30,27 +29,12 @@ def build_prompt(question, docs_metadata, style="Default", memory_block="", cot=
     )
     return prompt
 
-def generate_answer(prompt, temperature=0.2, max_tokens=300, retries=3):
-    for attempt in range(retries):
-        try:
-            response = requests.post(
-                "http://localhost:11434/api/generate",
-                json={
-                    "model": "llama3",
-                    "prompt": prompt,
-                    "temperature": temperature,
-                    "max_tokens": max_tokens,
-                    "stream": False,
-                },
-                timeout=30  # Increased timeout
-            )
-            response.raise_for_status()
-            return response.json()["response"]
-        except requests.exceptions.Timeout:
-            if attempt == retries - 1:
-                st.error("LLM server timed out after multiple retries. Please check if Ollama is running.")
-                return "⚠️ Error: LLM server unavailable"
-            time.sleep(2)  # Wait before retrying
-        except Exception as e:
-            st.error(f"LLM Error: {str(e)}")
-            return "⚠️ Error generating answer"
+def generate_answer(prompt, temperature=0.2, max_tokens=1000, api_key=None):
+    """Generate answer using Gemini"""
+    gemini = GeminiHandler(api_key)
+    return gemini.generate_answer(prompt, temperature, max_tokens)
+
+def generate_answer_stream(prompt, temperature=0.2, max_tokens=1000, api_key=None):
+    """Stream answer using Gemini"""
+    gemini = GeminiHandler(api_key)
+    return gemini.generate_answer_stream(prompt, temperature, max_tokens)

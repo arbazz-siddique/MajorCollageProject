@@ -1,8 +1,6 @@
-import requests
 import pymupdf
 import streamlit as st
 from sentence_transformers import SentenceTransformer
-from config import Config
 
 # Initialize embedding model for title generation
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -32,26 +30,8 @@ def generate_chunk_title(text):
         if sentences:
             return sentences[0][:80] + ("..." if len(sentences[0]) > 80 else "")
             
-        # Only call LLM if necessary
-        prompt = (
-            "Summarize the following content into a short, descriptive title (5-10 words max).\n\n"
-            f"Content:\n{text}\n\n"
-            "Title:"
-        )
-        
-        response = requests.post(
-            Config.OLLAMA_URL + "/api/generate",
-            json={
-                "model": Config.OLLAMA_MODEL,
-                "prompt": prompt,
-                "temperature": 0.3,
-                "max_tokens": 20,
-                "stream": False,
-            },
-            timeout=10,  # Reduced timeout
-        )
-        response.raise_for_status()
-        return response.json()["response"].strip().replace('"', '')
-    except Exception:
         # Fallback to first meaningful words
         return ' '.join(text.split()[:7]) + ("..." if len(text.split()) > 7 else "")
+    except Exception as e:
+        st.error(f"Title generation error: {e}")
+        return ' '.join(text.split()[:5]) + "..."

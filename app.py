@@ -2,7 +2,6 @@ import os
 import pandas as pd
 import datetime
 import time
-import requests
 import streamlit as st
 import asyncio
 import sys
@@ -13,9 +12,17 @@ import pyttsx3
 from gtts import gTTS
 from typing import Optional
 from googletrans import Translator
-import socket
+import re
+
+# Import all modules at the top
+from src.gemini_utils import GeminiHandler, check_gemini_health
+from src.retrieval import AIDocumentStore, embed_query
+from src.generator import build_prompt, generate_answer, generate_answer_stream
+from src.memory import add_to_memory, format_memory_prompt
+from src.upload_utils import extract_text_from_pdf, extract_text_from_txt, chunk_text, generate_chunk_title
 
 translator = Translator()
+
 # Fix for Windows event loop
 if sys.platform == "win32" and sys.version_info >= (3, 8):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -38,23 +45,6 @@ def initialize_document_store():
             store.build_index()
     
     return store
-
-def check_ollama_health():
-    try:
-        response = requests.get("http://localhost:11434", timeout=5)
-        return response.status_code == 200
-    except:
-        return False
-
-if not check_ollama_health():
-    st.error("Ollama server is not running. Please start it first.")
-    st.stop()
-
-# Import other modules after fixing the event loop
-from src.retrieval import AIDocumentStore, embed_query
-from src.generator import build_prompt, generate_answer
-from src.memory import add_to_memory, format_memory_prompt
-from src.upload_utils import extract_text_from_pdf, extract_text_from_txt, chunk_text, generate_chunk_title
 
 # Initialize history file
 if not os.path.exists("data/history.csv"):
@@ -81,30 +71,53 @@ st.title("AI Study Buddy")
 st.markdown("Ask an AI/ML related question via text or upload. Get answers with memory, reasoning, and sources!")
 
 # Sidebar settings
+# In your sidebar section, add this:
 with st.sidebar:
     st.header("Model Settings")
+    
+    # Gemini API Key input
+    google_api_key = st.text_input(
+        "Google Gemini API Key",
+        type="password",
+        help="Get from https://aistudio.google.com/",
+        value=st.session_state.get("google_api_key", "")
+    )
+    st.session_state.google_api_key = google_api_key
+    
+    if st.button("Check Gemini Connection"):
+        if google_api_key:
+            if check_gemini_health(google_api_key):
+                st.success("✅ Gemini is connected!")
+            else:
+                st.error("❌ Gemini connection failed")
+        else:
+            st.warning("Please enter Gemini API key")
+    
+    # Add debug info
+    st.header("🔧 Debug Info")
+    if st.session_state.get("google_api_key"):
+        st.write(f"API Key Length: {len(st.session_state.google_api_key)}")
+        st.write(f"Starts with: {st.session_state.google_api_key[:6]}...")
+    
+    # Test with simple prompt
+    if st.button("Test Simple Prompt"):
+        if st.session_state.get("google_api_key"):
+            try:
+                from src.gemini_utils import GeminiHandler
+                gemini = GeminiHandler(st.session_state.google_api_key)
+                test_response = gemini.generate_answer("What is 2+2? Answer in one word.")
+                st.success(f"Test Response: {test_response}")
+            except Exception as e:
+                st.error(f"Test Failed: {e}")
+        else:
+            st.warning("Please enter API key first")
+    
     temperature = st.slider("Temperature", 0.0, 1.0, 0.2, 0.1)
-    max_tokens = st.slider("Max Tokens", 100, 1000, 300, 50)
+    max_tokens = st.slider("Max Tokens", 100, 2000, 1000, 50)
     prompt_style = st.selectbox("Prompt Style", [
         "Default", "Concise", "Beginner-Friendly", "Explain Step-by-Step", "With Citations Only"
     ])
-    cot_enabled = st.toggle("Chain-of-Thought", value=False,
-                          help="Helps the model think through the problem before answering.")
-    
-    st.header("Local Model Status")
-    if st.button("Check Ollama Connection"):
-        try:
-            response = requests.get("http://localhost:11434")
-            if response.status_code == 200:
-                st.success("✅ Ollama is running!")
-                st.session_state.model_loaded = True
-            else:
-                st.error("Ollama is not responding")
-        except Exception as e:
-            st.error(f"Failed to connect to Ollama: {str(e)}")
-
-
-
+    cot_enabled = st.toggle("Chain-of-Thought", value=False)
 # Load FAISS index
 @st.cache_resource(show_spinner="Loading document store...")
 def load_ai_knower():
@@ -175,7 +188,6 @@ with st.form("question_form"):
             stop_gen = st.form_submit_button("Stop Generation")
 
 # --- TTS Functions ---
-# Update the TTS functions at the top of your file
 def text_to_speech(text: str, language: str = "en") -> Optional[bytes]:
     """Convert text to speech audio with proper language support"""
     try:
@@ -208,8 +220,6 @@ def translate_text(text, target_lang="hi"):
         st.error(f"Translation error: {str(e)}")
         return text  # Fallback to original text
 
-
-# Update the toggle_speech function
 def toggle_speech(text: str, language: str = "en"):
     """Translate text if needed, then speak"""
     global _tts_active
@@ -247,92 +257,63 @@ def toggle_speech(text: str, language: str = "en"):
 with st.sidebar:
     st.header("Speech Settings")
     st.session_state.tts_language = st.selectbox(
-    "Speech Language",
-    options=["en", "hi", "kn", "ta", "te", "ml", "fr", "es","ja"],  # Add more as needed
-    format_func=lambda x: {
-        "en": "English",
-        "hi": "Hindi",
-        "ja": "日本語 (Japanese)" ,
-        "kn": "Kannada", 
-        "ta": "Tamil",
-        "te": "Telugu",
-        "ml": "Malayalam",
-        "fr": "French",
-        "es": "Spanish"
+        "Speech Language",
+        options=["en", "hi", "kn", "ta", "te", "ml", "fr", "es","ja"],
+        format_func=lambda x: {
+            "en": "English",
+            "hi": "Hindi",
+            "ja": "日本語 (Japanese)",
+            "kn": "Kannada", 
+            "ta": "Tamil",
+            "te": "Telugu",
+            "ml": "Malayalam",
+            "fr": "French",
+            "es": "Spanish"
+        }[x]
+    )
 
-    }[x]
-)
-# --- Answer Generation ---
-def generate_answer_stream(prompt: str, temperature: float = 0.2, max_tokens: int = 300):
-    """Generate answer with streaming support"""
-    try:
-        response = requests.post(
-            "http://localhost:11434/api/generate",
-            json={
-                "model": "llama3",
-                "prompt": prompt,
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-                "stream": True,
-            },
-            stream=True,
-            timeout=30
-        )
-        response.raise_for_status()
-        
-        answer_container = st.empty()
-        full_response = ""
-        
-        for line in response.iter_lines():
-            if st.session_state.stop_generation:
-                answer_container.markdown(full_response + " (stopped)")
-                st.session_state.stop_generation = False
-                return full_response
-                
-            if line:
-                decoded_line = line.decode('utf-8')
-                if decoded_line.strip():
-                    try:
-                        response_json = json.loads(decoded_line)
-                        token = response_json.get("response", "")
-                        full_response += token
-                        answer_container.markdown(full_response + "▌")
-                    except json.JSONDecodeError:
-                        continue
-        
-        answer_container.markdown(full_response)
-        return full_response
-    except Exception as e:
-        st.error(f"Generation Error: {str(e)}")
-        return "⚠️ Error generating answer"
-
-# --- Answer Pipeline ---
 # --- Answer Pipeline ---
 if submit and query:
     st.session_state.stop_generation = False
     
-    if any(greet in query.lower() for greet in ["hello", "hi", "hey", "how are you"]):
+    # --- 🔴 FIXED GREETING LOGIC START ---
+    # We use Regex (\b) to ensure we match "hi" as a whole word, 
+    # not inside "machine", "history", or "within".
+    greeting_patterns = [
+        r"\bhello\b", r"\bhi\b", r"\bhey\b", 
+        r"\bhow are you\b", r"\bgood morning\b", 
+        r"\bgood afternoon\b", r"\bgood evening\b"
+    ]
+    
+    # Check if any pattern exists in the query
+    is_greeting = any(re.search(p, query.lower()) for p in greeting_patterns)
+    # --- 🔴 FIXED GREETING LOGIC END ---
+    
+    if is_greeting:
         with st.spinner("Thinking..."):
             st.session_state.answer = "Hello! I'm your AI study buddy. How can I help you with your studies today?"
             st.session_state.matched_docs = []
             st.session_state.explanation = "This is a greeting response."
             st.session_state.prompt = "Greeting response"
-            time.sleep(0.5)  # Small delay to show spinner briefly
     else:
+        # Process regular question
         input_context = selected_chunk if selected_chunk else ""
         full_input = query if not input_context else f"{input_context}\n{query}"
 
-        # Use a single spinner context for the entire operation
-        with st.spinner("Thinking..."):
+        with st.spinner("Searching documents and generating answer..."):
             try:
+                # Get memory context
                 memory_context = format_memory_prompt(st.session_state.qa_memory)
+                
+                # Search for relevant documents
                 q_emb = embed_query(full_input).reshape(1, -1)
                 _, I = index.search(q_emb, k=3)
                 matched_docs = [
-                    (doc[:1000], meta)
-                    for doc, meta in [(documents[i], metadata[i]) for i in I[0] if i < len(documents)]
+                    (documents[i][:1000], metadata[i])
+                    for i in I[0] if i < len(documents)
                 ] if len(documents) > 0 else []
 
+                # Build prompt
                 st.session_state.prompt = build_prompt(
                     question=full_input,
                     docs_metadata=matched_docs,
@@ -341,39 +322,60 @@ if submit and query:
                     cot=cot_enabled
                 )
 
-                # Use streaming for better UX
+                # DEBUG: Show prompt in sidebar
+                with st.sidebar.expander("🔍 Debug: Generated Prompt"):
+                    st.text_area("Prompt", st.session_state.prompt, height=200)
+
+                # Generate answer using Gemini
                 st.session_state.streaming = True
-                answer = generate_answer_stream(
+                answer_container = st.empty()
+                full_response = ""
+
+                # Use the streaming function from generator.py
+                # st.info(f"🔍 Using model: {st.session_state.get('current_model', 'models/gemini-2.0-flash')}")
+                
+                for chunk in generate_answer_stream(
                     st.session_state.prompt,
                     temperature=temperature,
-                    max_tokens=max_tokens
-                )
-                
-                # Generate explanation only if not stopped
-                if not st.session_state.stop_generation:
+                    max_tokens=max_tokens,
+                    api_key=st.session_state.get("google_api_key")
+                ):
+                    if st.session_state.stop_generation:
+                        break
+                    full_response += chunk
+                    answer_container.markdown(full_response + "▌")
+                    time.sleep(0.01)
+
+                st.session_state.answer = full_response
+                st.session_state.matched_docs = matched_docs
+
+                # Generate explanation if we got a response
+                if not st.session_state.stop_generation and full_response.strip():
                     explanation_prompt = (
                         "You are a helpful AI tutor. Briefly explain why the following answer is accurate, "
                         "based on the context it was built from.\n\n"
-                        f"Answer:\n{answer}\n\n"
+                        f"Answer:\n{st.session_state.answer}\n\n"
                         f"Context:\n{st.session_state.prompt}\n\n"
                         "Explain why this answer makes sense:"
                     )
-                    explanation = generate_answer(explanation_prompt, temperature=0.3, max_tokens=200)
+                    st.session_state.explanation = generate_answer(
+                        explanation_prompt, 
+                        temperature=0.3, 
+                        max_tokens=200,
+                        api_key=st.session_state.get("google_api_key")
+                    )
                 else:
-                    explanation = "Generation was stopped by user"
+                    st.session_state.explanation = "Generation was stopped by user or no response generated"
 
-                st.session_state.answer = answer
-                st.session_state.matched_docs = matched_docs
-                st.session_state.explanation = explanation
-                
             except Exception as e:
                 st.error(f"Error generating answer: {str(e)}")
+                st.session_state.answer = f"Error: {str(e)}"
+                st.session_state.explanation = f"An error occurred: {str(e)}"
             finally:
-                # Ensure these are always set when done
                 st.session_state.streaming = False
                 st.session_state.stop_generation = False
 
-    # Common processing
+    # Common processing for both greeting and regular questions
     st.session_state.qa_memory = add_to_memory(st.session_state.qa_memory, query, st.session_state.answer)
     st.session_state.tts_active = False
 
@@ -462,6 +464,6 @@ if st.session_state.answer:
 # Footer
 st.markdown("---")
 st.markdown("""
-📧 Questions or feedback? Reach out at [)  
-💼 Connect with me on [LinkedIn]()
+📧 Questions or feedback? Reach out at [your-email@example.com]  
+💼 Connect with me on [LinkedIn](https://linkedin.com/in/your-profile)
 """)

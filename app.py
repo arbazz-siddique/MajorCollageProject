@@ -8,11 +8,14 @@ import sys
 import json
 import base64
 from io import BytesIO
-import pyttsx3
+# REMOVED pyttsx3
 from gtts import gTTS
 from typing import Optional
-from googletrans import Translator
+# REMOVED googletrans
 import re
+from deep_translator import GoogleTranslator
+
+
 
 # Import all modules at the top
 from src.gemini_utils import GeminiHandler, check_gemini_health
@@ -202,13 +205,14 @@ def text_to_speech(text: str, language: str = "en") -> Optional[bytes]:
         return None
 
 def translate_text(text, target_lang="hi"):
-    """Translate text to target language"""
+    """Translate text using deep-translator (More stable)"""
     try:
-        translation = translator.translate(text, dest=target_lang)
-        return translation.text
+        # deep-translator handles the client automatically
+        translated = GoogleTranslator(source='auto', target=target_lang).translate(text)
+        return translated
     except Exception as e:
         st.error(f"Translation error: {str(e)}")
-        return text  # Fallback to original text
+        return text  # Fallback to original
 
 def toggle_speech(text: str, language: str = "en"):
     """Translate text if needed, then speak"""

@@ -189,24 +189,14 @@ with st.form("question_form"):
 
 # --- TTS Functions ---
 def text_to_speech(text: str, language: str = "en") -> Optional[bytes]:
-    """Convert text to speech audio with proper language support"""
+    """Convert text to speech audio using gTTS (Cloud Compatible)"""
     try:
-        # Always use gTTS for non-English languages
-        if language != "en":
-            tts = gTTS(text=text, lang=language, slow=False)
-            audio_bytes = BytesIO()
-            tts.write_to_fp(audio_bytes)
-            return audio_bytes.getvalue()
-        else:  # Use pyttsx3 only for English
-            engine = pyttsx3.init()
-            engine.setProperty('rate', 150)
-            engine.setProperty('volume', 1.0)
-            engine.save_to_file(text, 'temp_audio.mp3')
-            engine.runAndWait()
-            with open('temp_audio.mp3', 'rb') as f:
-                audio_bytes = f.read()
-            os.remove('temp_audio.mp3')
-            return audio_bytes
+        # We FORCE gTTS for all languages to prevent cloud crashes
+        # pyttsx3 does not work reliably on Streamlit Cloud
+        tts = gTTS(text=text, lang=language, slow=False)
+        audio_bytes = BytesIO()
+        tts.write_to_fp(audio_bytes)
+        return audio_bytes.getvalue()
     except Exception as e:
         st.error(f"TTS Error: {str(e)}")
         return None

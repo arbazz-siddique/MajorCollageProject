@@ -16,6 +16,12 @@ htmlcov/
 # User-Specific History
 data/history.csv
 
+# Ignore local data and secrets
+data/
+.streamlit/secrets.toml
+__pycache__/
+*.pyc
+
 # Env files
 .env
 .env.*

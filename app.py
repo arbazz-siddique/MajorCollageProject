@@ -24,7 +24,7 @@ from src.generator import build_prompt, generate_answer, generate_answer_stream
 from src.memory import add_to_memory, format_memory_prompt
 from src.upload_utils import extract_text_from_pdf, extract_text_from_txt, chunk_text, generate_chunk_title
 
-translator = Translator()
+
 
 # Fix for Windows event loop
 if sys.platform == "win32" and sys.version_info >= (3, 8):

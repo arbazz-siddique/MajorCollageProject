@@ -458,6 +458,6 @@ if st.session_state.answer:
 # Footer
 st.markdown("---")
 st.markdown("""
-📧 Questions or feedback? Reach out at [your-email@example.com]  
-💼 Connect with me on [LinkedIn](https://linkedin.com/in/your-profile)
+📧 Questions or feedback? Reach out at arbazzsiddique104@gmail.com  
+💼 Connect with me on [LinkedIn](https://www.linkedin.com/in/arbaz-siddique-b99529244/)
 """)

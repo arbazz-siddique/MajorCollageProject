@@ -8,19 +8,16 @@ class GeminiHandler:
     def __init__(self, api_key: str = None):
         self.api_key = api_key or os.getenv("GOOGLE_API_KEY")
         self.available_models = [
-            "models/gemini-2.0-flash",  # Fast and reliable
-            "models/gemini-2.0-flash-001",  # Stable version
-            "models/gemini-2.5-flash",  # Latest flash model
-            "models/gemini-pro-latest",  # Pro equivalent
+            "gemini-2.0-flash",       # Latest
+            "gemini-1.5-flash",       # Extremely stable, high quota
+            "gemini-1.5-flash-8b",    # Highest quota, faster for simple tasks
+            "gemini-1.5-pro",         # Smarter, but lower quota
         ]
-        self.model_name = self.available_models[0]  # Default to first available
-        
+        self.current_model_index = 0
+        self.model_name = self.available_models[self.current_model_index]
         if self.api_key:
             try:
                 genai.configure(api_key=self.api_key)
-                # Test which models are actually available
-                self._detect_available_model()
-                # st.success(f"✅ Gemini configured with model: {self.model_name}")
             except Exception as e:
                 st.error(f"❌ Gemini configuration failed: {e}")
     
@@ -116,8 +113,8 @@ def check_gemini_health(api_key: str) -> bool:
         st.error("❌ No API key provided")
         return False
         
-    if not api_key.startswith('AI'):
-        st.error("❌ Invalid API key format. Should start with 'AIza'")
+    if not (api_key.startswith('AI') or api_key.startswith('AIza')):
+        st.error("❌ Invalid API key format.")
         return False
         
     try:
@@ -125,10 +122,10 @@ def check_gemini_health(api_key: str) -> bool:
         
         # Try multiple model options
         model_options = [
-            "models/gemini-2.0-flash",
-            "models/gemini-2.0-flash-001", 
-            "models/gemini-2.5-flash",
-            "models/gemini-pro-latest"
+            "gemini-2.0-flash",       # Latest
+            "gemini-1.5-flash",       # Extremely stable, high quota
+            "gemini-1.5-flash-8b",    # Highest quota, faster for simple tasks
+            "gemini-1.5-pro",         # Smarter, but lower quota
         ]
         
         working_model = None

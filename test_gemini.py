@@ -10,10 +10,10 @@ def test_gemini_fixed():
         
         # Test with available models
         model_options = [
-            "models/gemini-2.0-flash",
-            "models/gemini-2.0-flash-001",
-            "models/gemini-2.5-flash", 
-            "models/gemini-pro-latest"
+            "gemini-2.0-flash",       # Latest
+            "gemini-1.5-flash",       # Extremely stable, high quota
+            "gemini-1.5-flash-8b",    # Highest quota, faster for simple tasks
+            "gemini-1.5-pro",         # Smarter, but lower quota
         ]
         
         for model_name in model_options:

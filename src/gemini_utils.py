@@ -40,7 +40,7 @@ class GeminiHandler:
                 except:
                     continue
             # If all fail, use the latest flash as fallback
-            self.model_name = "models/gemini-2.0-flash"
+            self.model_name = "models/gemini-1.5-flash"
             return False
     
     def generate_answer(self, prompt: str, temperature: float = 0.2, max_tokens: int = 1000) -> str:
